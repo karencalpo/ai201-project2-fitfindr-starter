@@ -259,19 +259,19 @@ Notes:
 - **AI tool:** Claude (via Copilot)
 - **Input:** I'll provide Claude with the Tool 1 spec (inputs: description, size, max_price; return value: 3 ranked listings; failure mode: empty list → agent should suggest retry), plus the listings.json schema and 5 sample listings from data/listings.json
 - **Expected output:** A Python function that loads listings via load_listings() from utils/data_loader.py, filters by size/price, ranks by relevance to description, and returns top 3
-- **Pytest verification:** Write tests for (1) "vintage graphic tee" query with size M and max_price 30 returns 3 results, (2) "oversized blazer" with no filters returns valid results, (3) query with no matches returns empty list — verify output format matches spec, ranking logic is sound, and empty list handling is correct
+- **Pytest verification:** Write tests for (1) "vintage graphic tee" query with size M and max_price 30 returns 3 results, (2) "oversized blazer" with no filters returns valid results, (3) query with no matches returns empty list — verify output format matches spec, ranking logic is sound, and empty list handling is correct. Tests shold go in the file /tests/test_tools.py
 
 **Tool 2: suggest_outfit()**
 - **AI tool:** Claude (via Copilot)
 - **Input:** Tool 2 spec (inputs: new_item dict + wardrobe dict; return value: natural-language outfit suggestion; failure mode: empty wardrobe → return general advice), plus wardrobe_schema.json, 1 sample new_item, and 1 sample wardrobe with 5+ items
 - **Expected output:** A Python function that accepts new_item and wardrobe, generates a specific outfit using named wardrobe pieces if available, or falls back to general styling advice if wardrobe is empty
-- **Pytest verification:** Write tests for (1) populated wardrobe returns outfit mentioning specific pieces, (2) empty wardrobe returns general styling advice without crashing, (3) mismatched/unexpected item categories handled gracefully — verify output is natural language and function never raises exceptions
+- **Pytest verification:** Write tests for (1) populated wardrobe returns outfit mentioning specific pieces, (2) empty wardrobe returns general styling advice without crashing, (3) mismatched/unexpected item categories handled gracefully — verify output is natural language and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
 
 **Tool 3: create_fit_card()**
 - **AI tool:** Claude (via Copilot)
 - **Input:** Tool 3 spec (inputs: outfit string + new_item dict; return value: 2–4 sentence caption; failure mode: missing outfit → return fallback message), plus the outfit suggestions from Tool 2 and listing data structure
 - **Expected output:** A Python function that accepts outfit text and new_item, produces a casual social-media-style caption mentioning price, platform, and vibe
-- **Pytest verification:** Write tests for (1) complete outfit input returns 2–4 sentence caption with price/platform mentioned, (2) empty/None outfit returns clear fallback message, (3) missing listing fields handled gracefully — verify captions have correct tone and structure, and function never raises exceptions
+- **Pytest verification:** Write tests for (1) complete outfit input returns 2–4 sentence caption with price/platform mentioned, (2) empty/None outfit returns clear fallback message, (3) missing listing fields handled gracefully — verify captions have correct tone and structure, and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
 
 **Milestone 4 — Planning loop and state management:**
 - **AI tool:** Claude (via Copilot)
