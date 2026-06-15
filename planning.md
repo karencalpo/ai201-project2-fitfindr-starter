@@ -188,6 +188,7 @@ For each tool, describe the specific failure mode you're handling and what the a
 flowchart TD
 
 U[User Input] --> P[Planning Loop]
+
 P --> A[Parse request: description, size, max_price, wardrobe]
 A --> B{Description present?}
 B -->|No| C[Ask clarification question]
