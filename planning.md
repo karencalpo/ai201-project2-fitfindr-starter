@@ -184,91 +184,46 @@ For each tool, describe the specific failure mode you're handling and what the a
      ASCII art, a Mermaid diagram (https://mermaid.js.org/syntax/flowchart.html), or an embedded
      sketch are all fine. You'll share this diagram with an AI tool when asking it to implement
      the planning loop and each individual tool. -->
+     
+flowchart TD
+U[User Input] --> P[Planning Loop]
+P --> A[Parse request: description, size, max_price, wardrobe]
+A --> B{Description present?}
+B -->|No| C[Ask clarification question]
+C --> END1([End: waiting_for_input])
 
-+------------------+
-|    User Input    |
-+------------------+
-         |
-         v
-+------------------------------+
-|         Planning Loop        |
-| parse: description, size,    |
-| max_price, wardrobe          |
-+------------------------------+
-         |
-         v
-+------------------------------+
-| description present?         |
-+------------------------------+
-   | Yes                     | No
-   v                         v
-+----------------------+   +----------------------------------+
-| call search_listings |   | ask clarification question       |
-| (description,size,   |   | "What item are you looking for?" |
-|  max_price)          |   +----------------------------------+
-+----------------------+                 |
-   |                                     v
-   v                               [END: waiting_for_input]
-+------------------------------+
-| search error?                |
-+------------------------------+
-   | Yes                     | No
-   v                         v
-+------------------------------+   +------------------------------+
-| fallback: cannot search now  |   | listings returned?           |
-+------------------------------+   +------------------------------+
-   |                                 | No                      | Yes
-   v                                 v                         v
-[END: search_failed]          +--------------------------+   +------------------------------+
-                              | no matches guidance      |   | selected_item = listings[0] |
-                              | (broaden/retry tips)     |   | backup_items = listings[1:] |
-                              +--------------------------+   +------------------------------+
-                                         |                              |
-                                         v                              v
-                                  [END: no_results]          +-------------------------------+
-                                                             | call suggest_outfit          |
-                                                             | (new_item, wardrobe)         |
-                                                             +-------------------------------+
-                                                                       |
-                                                                       v
-                                                             +------------------------------+
-                                                             | outfit generated?            |
-                                                             +------------------------------+
-                                                                | No                     | Yes
-                                                                v                        v
-                                                     +--------------------------+  +----------------------+
-                                                     | set fallback outfit_text |  | store outfit_text    |
-                                                     +--------------------------+  +----------------------+
-                                                                \                    /
-                                                                 \                  /
-                                                                  v                v
-                                                             +-------------------------------+
-                                                             | call create_fit_card          |
-                                                             | (outfit_text, selected_item)  |
-                                                             +-------------------------------+
-                                                                       |
-                                                                       v
-                                                             +------------------------------+
-                                                             | fit card generated?          |
-                                                             +------------------------------+
-                                                                | No                     | Yes
-                                                                v                        v
-                                                     +----------------------+   +----------------------+
-                                                     | fit_card = null      |   | store fit_card       |
-                                                     +----------------------+   +----------------------+
-                                                                \                    /
-                                                                 \                  /
-                                                                  v                v
-                                                         +--------------------------------------+
-                                                         | build final response:                |
-                                                         | 1) listing summary                   |
-                                                         | 2) outfit suggestion                 |
-                                                         | 3) fit card (if exists)             |
-                                                         | 4) backup listings (optional)       |
-                                                         +--------------------------------------+
-                                                                           |
-                                                                           v
-                                                                   [END: complete]
+B -->|Yes| D[Call search_listings(description, size, max_price)]
+D --> E{Search error?}
+
+E -->|Yes| F[Return fallback: could not search listings]
+F --> END2([End: search_failed])
+
+E -->|No| G{Any listings returned?}
+G -->|No| H[Return no-matches guidance with retry suggestions]
+H --> END3([End: no_results])
+
+G -->|Yes| I[Set selected_item = listings[0]; backup_items = listings[1:]]
+I --> J[Call suggest_outfit(new_item, wardrobe)]
+J --> K{Outfit generated?}
+
+K -->|No| L[Set fallback outfit_text and continue]
+K -->|Yes| M[Store outfit_text]
+
+L --> N[Call create_fit_card(outfit_text, selected_item)]
+M --> N
+N --> O{Fit card generated?}
+
+O -->|No| Q[Set fit_card = null and continue]
+O -->|Yes| R[Store fit_card]
+
+Q --> T[Build final response]
+R --> T
+T --> V[Output order: listing summary, outfit suggestion, optional fit card, optional backup listings]
+V --> END4([End: complete])
+
+S[(State / Session)] --- P
+S --- D
+S --- J
 
 
 STATE / SESSION (shared across steps)
