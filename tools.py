@@ -13,19 +13,41 @@ Tools:
 """
 
 import os
-
-from dotenv import load_dotenv
-from groq import Groq
+from importlib import import_module
 
 from utils.data_loader import load_listings
 
-load_dotenv()
+def _load_dotenv_if_available() -> None:
+    """Load .env values when python-dotenv is installed."""
+    try:
+        dotenv = import_module("dotenv")
+    except ImportError:
+        return
+
+    load_dotenv = getattr(dotenv, "load_dotenv", None)
+    if load_dotenv is not None:
+        load_dotenv()
+
+
+_load_dotenv_if_available()
 
 
 # ── Groq client ───────────────────────────────────────────────────────────────
 
 def _get_groq_client():
     """Initialize and return a Groq client using GROQ_API_KEY from .env."""
+    try:
+        groq_module = import_module("groq")
+    except ImportError as exc:
+        raise ImportError(
+            "groq is not installed. Install project dependencies to use LLM tools."
+        ) from exc
+
+    Groq = getattr(groq_module, "Groq", None)
+    if Groq is None:
+        raise ImportError(
+            "groq is installed but Groq could not be imported."
+        )
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise ValueError(
@@ -44,33 +66,101 @@ def search_listings(
     """
     Search the mock listings dataset for items matching the description,
     optional size, and optional price ceiling.
-
-    Args:
-        description: Keywords describing what the user is looking for
-                     (e.g., "vintage graphic tee").
-        size:        Size string to filter by, or None to skip size filtering.
-                     Matching is case-insensitive (e.g., "M" matches "S/M").
-        max_price:   Maximum price (inclusive), or None to skip price filtering.
-
-    Returns:
-        A list of matching listing dicts, sorted by relevance (best match first).
-        Returns an empty list if nothing matches — does NOT raise an exception.
-
-    Each listing dict has the following fields:
-        id, title, description, category, style_tags (list), size,
-        condition, price (float), colors (list), brand, platform
-
-    TODO:
-        1. Load all listings with load_listings().
-        2. Filter by max_price and size (if provided).
-        3. Score each remaining listing by keyword overlap with `description`.
-        4. Drop any listings with a score of 0 (no relevant matches).
-        5. Sort by score, highest first, and return the listing dicts.
-
-    Before writing code, fill in the Tool 1 section of planning.md.
     """
-    # Replace this with your implementation
-    return []
+    import re
+    from collections import Counter
+
+    def normalize(text: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", str(text).lower()).strip()
+
+    def tokenize(text: str) -> list[str]:
+        return [token for token in normalize(text).split() if token]
+
+    def listing_text(listing: dict) -> str:
+        parts = [
+            listing.get("title", ""),
+            listing.get("description", ""),
+            listing.get("category", ""),
+            " ".join(listing.get("style_tags", []) or []),
+            " ".join(listing.get("colors", []) or []),
+            listing.get("brand") or "",
+        ]
+        return normalize(" ".join(parts))
+
+    def size_matches(query_size: str | None, listing_size: str | None) -> bool:
+        if not query_size:
+            return True
+        if not listing_size:
+            return False
+
+        query_norm = normalize(query_size)
+        listing_norm = normalize(listing_size)
+
+        #query_tokens = set(tokenize(query_norm))
+        listing_tokens = set(tokenize(listing_norm))
+
+        if query_norm == listing_norm:
+            return True
+
+        if query_norm in listing_norm or listing_norm in query_norm:
+            return True
+
+        if query_norm in {"s", "small"}:
+            return bool({"s", "small"} & listing_tokens) or "s/m" in listing_norm
+        if query_norm in {"m", "medium"}:
+            return bool({"m", "medium"} & listing_tokens) or any(
+                marker in listing_norm for marker in ["s/m", "m/l", "medium", "fits medium"]
+            )
+        if query_norm in {"l", "large"}:
+            return bool({"l", "large"} & listing_tokens) or any(
+                marker in listing_norm for marker in ["m/l", "xl", "oversized", "fits oversized"]
+            )
+        if query_norm in {"xl", "xlarge", "extra large"}:
+            return "xl" in listing_norm or "oversized" in listing_norm
+
+        return query_norm in listing_norm or listing_norm in query_norm
+
+    description_tokens = tokenize(description or "")
+    if not description_tokens:
+        return []
+
+    listings = load_listings()
+    scored_results: list[tuple[int, float, str, dict]] = []
+
+    for listing in listings:
+        price = listing.get("price")
+        if max_price is not None and price is not None and float(price) > float(max_price):
+            continue
+
+        if not size_matches(size, listing.get("size")):
+            continue
+
+        text = listing_text(listing)
+        listing_tokens = tokenize(text)
+        token_counts = Counter(listing_tokens)
+
+        overlap_score = 0
+        for token in description_tokens:
+            if token in token_counts:
+                overlap_score += 2
+
+        description_phrase = normalize(description)
+        if description_phrase and description_phrase in text:
+            overlap_score += 5
+
+        if " ".join(description_tokens) in text:
+            overlap_score += 3
+
+        if overlap_score <= 0:
+            continue
+
+        title = listing.get("title", "")
+        sort_price = float(price) if price is not None else float("inf")
+        scored_results.append((overlap_score, sort_price, normalize(title), listing))
+
+    scored_results.sort(key=lambda item: (-item[0], item[1], item[2]))
+
+    return [item[3] for item in scored_results[:3]]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
