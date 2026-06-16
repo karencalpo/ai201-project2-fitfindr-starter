@@ -309,5 +309,5 @@ You should totally pair the 90s silk slip dress with the black combat boots for 
 Alternatively, you could dress down the slip dress with the chunky white sneakers and the white ribbed tank top layered under the dress (just tie the tank top in a knot at the front to add some visual interest). This outfit would be super cute and relaxed, perfect for a weekend brunch or a stroll in the park. The ivory and dusty pink colors in the dress will look great with the crisp white sneakers and tank top.
 
 Fit card caption:
- "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸.""
+ "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸."
 

@@ -331,25 +331,29 @@ Notes:
 - **Verification:** Manually trace through the Complete Interaction example step by step: (1) user input "I'm looking for a vintage graphic tee under $30..." → verify parsing extracts description="vintage graphic tee", max_price=30, and wardrobe context; (2) verify search_listings is called with correct args → verify selected_item is set to top result; (3) verify suggest_outfit is called with selected_item and wardrobe; (4) verify create_fit_card is called with outfit_text and selected_item; (5) verify final response includes all four components in correct order with correct content; (6) test an error scenario (e.g., empty search results) and verify early-stop path is triggered correctly
 ---
 
-## A Complete Interaction (Step by Step) - AI Usage Section
+## A Complete Interaction (Step by Step)
 
 Write out what a full user interaction looks like from start to finish — tool call by tool call. Use a specific example query.
 ```
 FitFindr must create a wardrobe for a user based off what the user is looking for. The user gives input as to what they are looking for, an outfit is suggested, and a matching "fit card" description is created for the outsit that is suggested.
 ```
 
-**Example user query 1:** "I'm looking for a flowy emerald green midi dress under $75, size M. I usually wear ankle boots and a cropped denim jacket."
+**Example user query:** "I'm looking for a flowy emerald green midi dress under $75, size M. I usually wear ankle boots and a cropped denim jacket."
 
 **Step 1:**
-search_listings("emerald green midi dress", size="M", max_price=30.0) returns 3 matching listings sorted by relevance. Example Wardrobe radio button selected FitFindr picks the top result: "90s Silk Slip Dress — Floral, Midi Length, Depop, Good condition."
+<!-- What does the agent do first? Which tool is called? With what input? -->
+search_listings("emerald green midi dress", size="M", max_price=30.0) returns 3 matching listings sorted by relevance. FitFindr picks the top result: "90s Silk Slip Dress — Floral, Midi Length, Depop, Good condition."
 
 **Step 2:**
-suggest_outfit(new_item=<silk slip dress>, wardrobe=<user's wardrobe>) returns: "You should totally pair the 90s silk slip dress with the black combat boots for a cool, edgy vibe. The flowy dress and the tough boots will create a nice contrast that's perfect for a casual day out. Throw on the vintage black denim jacket to add some extra edge and you're good to go."
+<!-- What happens next? What was returned from step 1? What tool is called now? -->
+suggest_outfit(new_item=<band tee>, wardrobe=<user's wardrobe>) returns: "You should totally pair the 90s silk slip dress with the black combat boots for a cool, edgy vibe. The flowy dress and the tough boots will create a nice contrast that's perfect for a casual day out. Throw on the vintage black denim jacket to add some extra edge and you're good to go."
 
 **Step 3:**
-create_fit_card(outfit=<suggestion>, new_item=<silk slip dress>) returns: "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸."
+<!-- Continue until the full interaction is complete -->
+create_fit_card(outfit=<suggestion>, new_item=<band tee>) returns: "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸."
 
 **Final output to user:**
+<!-- What does the user actually see at the end? -->
 Found a great match: 90s Silk Slip Dress — Floral, Midi Length ($30, Depop, Good condition).
 
 How to style it with your wardrobe:
@@ -359,20 +363,3 @@ Alternatively, you could dress down the slip dress with the chunky white sneaker
 
 Fit card caption:
  "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸."
-
- **Example user query 2:** "I'm looking for a sleek black blazer under $120, size M. I want something I can wear with wide-leg trousers and loafers for a polished work outfit."
-
-**Step 1:**
-search_listings("sleek black blazer", size="M/L", max_price=120.0) returns 3 matching listings sorted by relevance. Empty wardrobe selected. FitFindr picks the top result: "Wide-Leg Linen Trousers — Natural, poshmark, excellent condition."
-
-**Step 2:**
-suggest_outfit(new_item=<Wide-Leg Linen Trousers>, wardrobe=<new wardrobe>) returns: "These wide-leg linen trousers are perfect for a laid-back, summery look and pair well with sandals, slides, or sneakers. You can dress them up or down with a variety of tops, from cropped tanks to loose-fitting blouses, and add a denim jacket or cardigan for a cooler evening. The natural color also makes them a great match for earthy accessories like woven baskets, straw hats, or layered necklaces with natural stones. Overall, they'll fit right in with a cottagecore or minimalist wardrobe, evoking a effortless, warm-weather vibe."
-
-**Step 3:**
-create_fit_card(outfit=<suggestion>, new_item=<Wide-Leg Linen Trousers>) returns: "i just scored these wide-leg linen trousers on poshmark for $34 and i'm obsessed - they're giving me all the laid-back summer vibes, especially when i pair them with my fave sandals and a flowy top. i love how the natural color looks with my woven basket bag and layered necklaces. it's the perfect addition to my cottagecore wardrobe and i can already imagine wearing them on warm evenings with a denim jacket thrown over my shoulders 💛"
-
-**Final output to user:**
-Found a great match: Wide-Leg Linen Trousers — Natural, poshmark, ($34, poshmark, excellent condition).
-
-How to style it with your wardrobe:
-These wide-leg linen trousers are perfect for a laid-back, summery look and pair well with sandals, slides, or sneakers. You can dress them up or down with a variety of tops, from cropped tanks to loose-fitting blouses, and add a denim jacket or cardigan for a cooler evening. The natural color also makes them a great match for earthy accessories like woven baskets, straw hats, or layered necklaces with natural stones. Overall, they'll fit right in with a cottagecore or minimalist wardrobe, evoking a effortless, warm-weather vibe.
