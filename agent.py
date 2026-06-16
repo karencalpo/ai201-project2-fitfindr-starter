@@ -105,19 +105,35 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     # Step 2: Parse query — extract max_price, size, and description via regex
 
-    # max_price: "under $30", "less than $40", "$25", etc.
-    price_pattern = re.compile(
+    # max_price: try range first ("between $100-$200", "$100-$200"), then single cap
+    range_pattern = re.compile(
+        r'\b(?:between\s+)?\$?\s*\d+(?:\.\d+)?\s*[-–—]\s*\$?\s*(\d+(?:\.\d+)?)'
+        r'|\bbetween\s+\$?\s*\d+(?:\.\d+)?\s+and\s+\$?\s*(\d+(?:\.\d+)?)',
+        re.IGNORECASE,
+    )
+    single_price_pattern = re.compile(
         r'\b(?:under|less\s+than|at\s+most|max(?:imum)?|below|up\s+to)\s+\$?\s*(\d+(?:\.\d+)?)'
         r'|\$\s*(\d+(?:\.\d+)?)',
         re.IGNORECASE,
     )
-    price_match = price_pattern.search(text)
-    max_price = float(price_match.group(1) or price_match.group(2)) if price_match else None
+    range_match = range_pattern.search(text)
+    if range_match:
+        max_price = float(next(g for g in range_match.groups() if g is not None))
+        price_span = range_match
+    else:
+        single_match = single_price_pattern.search(text)
+        if single_match:
+            max_price = float(single_match.group(1) or single_match.group(2))
+            price_span = single_match
+        else:
+            max_price = None
+            price_span = None
 
     # size: "size M", "size 8", or standalone label (XXS, XS, S, M, L, XL, XXL, XXXL)
+    # Negative lookbehind for apostrophe prevents matching the 'm' in "I'm" as size M.
     size_pattern = re.compile(
         r'\bsize\s+([a-zA-Z0-9]+(?:/[a-zA-Z0-9]+)?)\b'
-        r'|\b(XXS|XS|XXXL|XXL|XL|S|M|L)\b',
+        r"|(?<!')\b(XXS|XS|XXXL|XXL|XL|S|M|L)\b",
         re.IGNORECASE,
     )
     size_match = size_pattern.search(text)
@@ -125,21 +141,24 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     # description: strip price and size fragments from the query text
     desc = text
-    if price_match:
-        desc = desc[: price_match.start()] + desc[price_match.end() :]
+    if price_span:
+        desc = desc[: price_span.start()] + desc[price_span.end() :]
     size_match2 = size_pattern.search(desc)
     if size_match2:
         desc = desc[: size_match2.start()] + desc[size_match2.end() :]
 
-    # remove leading intent phrases and trailing connective words
+    # strip budget/price sentences that weren't caught above
+    desc = re.sub(r'\b(?:my\s+)?budget\s+is\b[^.!?]*[.!?]?', '', desc, flags=re.IGNORECASE)
+
+    # remove leading intent phrases ("I'm looking for", "looking for", "I want", etc.)
     desc = re.sub(
-        r'^\s*(?:looking\s+for|i\s+want|i\s+need|find\s+me|show\s+me|get\s+me)\b',
+        r"^\s*(?:i'?m\s+|i\s+am\s+)?(?:looking\s+for|searching\s+for|i\s+want|i\s+need|find\s+me|show\s+me|get\s+me)\b",
         '',
         desc,
         flags=re.IGNORECASE,
     )
     desc = re.sub(r'\b(?:in|for|at|a|an|the)\s*$', '', desc, flags=re.IGNORECASE)
-    desc = re.sub(r'\s+', ' ', desc).strip().strip(',').strip()
+    desc = re.sub(r'\s+', ' ', desc).strip().strip(',').strip('.'). strip()
 
     # Step 2 (continued): If description is missing or blank, stop and ask for clarification
     if not desc:
@@ -166,10 +185,13 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     if not results:
         session["status"] = "failed"
         session["stop_reason"] = "no_results"
-        session["errors"].append(
-            "No matches found for your search. "
-            "Try broadening your description, removing the size filter, or increasing your budget."
-        )
+        parts = [f'No listings found for "{desc}".']
+        if size:
+            parts.append(f'Size filter "{size}" may be too restrictive — try removing it.')
+        if max_price is not None:
+            parts.append(f'Budget of ${max_price:.0f} may be too low — try raising it.')
+        parts.append("You can also try a broader description (e.g., \"flowy dress\" instead of \"designer ballgown\").")
+        session["errors"].append(" ".join(parts))
         return session
 
     # Step 6: Select top result; keep the rest as backups
@@ -212,7 +234,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 if __name__ == "__main__":
     from utils.data_loader import get_example_wardrobe, get_empty_wardrobe
 
-    print("=== Happy path: graphic tee ===\n")
+    print("=== Happy path: midi dress ===\n")
     session = run_agent(
         query="looking for a vintage graphic tee under $30",
         wardrobe=get_example_wardrobe(),
@@ -232,3 +254,4 @@ if __name__ == "__main__":
     )
     print(f"Stop reason: {session2['stop_reason']}")
     print(f"Errors: {session2['errors']}")
+    print(f"\nFit card: {session2['fit_card']}")

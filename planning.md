@@ -263,13 +263,13 @@ Notes:
 - **AI tool:** Claude (via Copilot)
 - **Input:** Tool 2 spec (inputs: new_item dict + wardrobe dict; return value: natural-language outfit suggestion; failure mode: empty wardrobe → return general advice), plus wardrobe_schema.json, 1 sample new_item, and 1 sample wardrobe with 5+ items
 - **Expected output:** A Python function that accepts new_item and wardrobe, generates a specific outfit using named wardrobe pieces if available, or falls back to general styling advice if wardrobe is empty
-- **Pytest verification:** Write tests for (1) populated wardrobe returns outfit mentioning specific pieces, (2) empty wardrobe returns general styling advice without crashing, (3) mismatched/unexpected item categories handled gracefully — verify output is natural language and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
+- **verification:** Write tests for (1) populated wardrobe returns outfit mentioning specific pieces, (2) empty wardrobe returns general styling advice without crashing, (3) mismatched/unexpected item categories handled gracefully — verify output is natural language and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
 
 **Tool 3: create_fit_card()**
 - **AI tool:** Claude (via Copilot)
 - **Input:** Tool 3 spec (inputs: outfit string + new_item dict; return value: 2–4 sentence caption; failure mode: missing outfit → return fallback message), plus the outfit suggestions from Tool 2 and listing data structure
 - **Expected output:** A Python function that accepts outfit text and new_item, produces a casual social-media-style caption mentioning price, platform, and vibe
-- **Pytest verification:** Write tests for (1) complete outfit input returns 2–4 sentence caption with price/platform mentioned, (2) empty/None outfit returns clear fallback message, (3) missing listing fields handled gracefully — verify captions have correct tone and structure, and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
+- **verification:** Write tests for (1) complete outfit input returns 2–4 sentence caption with price/platform mentioned, (2) empty/None outfit returns clear fallback message, (3) missing listing fields handled gracefully — verify captions have correct tone and structure, and function never raises exceptions. Tests shold go in the file /tests/test_tools.py
 
 **Milestone 4 — Planning loop and state management:**
 - **AI tool:** Claude (via Copilot)
@@ -285,28 +285,29 @@ Write out what a full user interaction looks like from start to finish — tool 
 FitFindr must create a wardrobe for a user based off what the user is looking for. The user gives input as to what they are looking for, an outfit is suggested, and a matching "fit card" description is created for the outsit that is suggested.
 ```
 
-**Example user query:** "I'm looking for a vintage graphic tee under $30. I mostly wear baggy jeans and chunky sneakers. What's out there and how would I style it?"
+**Example user query:** "I'm looking for a flowy emerald green midi dress under $75, size M. I usually wear ankle boots and a cropped denim jacket."
 
 **Step 1:**
 <!-- What does the agent do first? Which tool is called? With what input? -->
-search_listings("vintage graphic tee", size="M", max_price=30.0) returns 3 matching listings sorted by relevance. FitFindr picks the top result: "Faded Band Tee — $22, Depop, Good condition."
+search_listings("emerald green midi dress", size="M", max_price=30.0) returns 3 matching listings sorted by relevance. FitFindr picks the top result: "90s Silk Slip Dress — Floral, Midi Length, Depop, Good condition."
 
 **Step 2:**
 <!-- What happens next? What was returned from step 1? What tool is called now? -->
-suggest_outfit(new_item=<band tee>, wardrobe=<user's wardrobe>) returns: "Pair this with your wide-leg jeans and platform Docs for a classic 90s grunge look. Roll the sleeves once and tuck the front corner slightly for shape."
+suggest_outfit(new_item=<band tee>, wardrobe=<user's wardrobe>) returns: "You should totally pair the 90s silk slip dress with the black combat boots for a cool, edgy vibe. The flowy dress and the tough boots will create a nice contrast that's perfect for a casual day out. Throw on the vintage black denim jacket to add some extra edge and you're good to go."
 
 **Step 3:**
 <!-- Continue until the full interaction is complete -->
-create_fit_card(outfit=<suggestion>, new_item=<band tee>) returns: "thrifted this faded band tee off depop for $22 and honestly it was made for my wide-legs 🖤 full look in my stories"
+create_fit_card(outfit=<suggestion>, new_item=<band tee>) returns: "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸."
 
 **Final output to user:**
 <!-- What does the user actually see at the end? -->
-Found a great match: Faded Band Tee ($22, Depop, Good condition).
+Found a great match: 90s Silk Slip Dress — Floral, Midi Length ($30, Depop, Good condition).
 
 How to style it with your wardrobe:
-Pair it with your wide-leg jeans and platform Docs for a 90s grunge look. Roll the sleeves once and do a slight front tuck for shape.
+You should totally pair the 90s silk slip dress with the black combat boots for a cool, edgy vibe. The flowy dress and the tough boots will create a nice contrast that's perfect for a casual day out. Throw on the vintage black denim jacket to add some extra edge and you're good to go.
+
+Alternatively, you could dress down the slip dress with the chunky white sneakers and the white ribbed tank top layered under the dress (just tie the tank top in a knot at the front to add some visual interest). This outfit would be super cute and relaxed, perfect for a weekend brunch or a stroll in the park. The ivory and dusty pink colors in the dress will look great with the crisp white sneakers and tank top.
 
 Fit card caption:
-"thrifted this faded band tee off depop for $22 and honestly it was made for my wide-legs - full look in my stories"
+ "i just scored this amazing 90s silk slip dress on depop for $30 and i'm obsessed - the flowy, midi length is so perfect for a casual day out. i paired it with my black combat boots and vintage denim jacket for a cool, edgy vibe that's all about contrasts. the ivory and dusty pink florals on the dress add a touch of sweetness to the overall look, which i'm totally here for 🌸.""
 
-If you want, I can also show 2 backup options from the other matching listings.
