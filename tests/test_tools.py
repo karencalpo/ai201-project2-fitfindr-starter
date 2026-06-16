@@ -1,45 +1,17 @@
 import os
 import pytest
 from tools import create_fit_card, search_listings, suggest_outfit
+from utils.data_loader import get_empty_wardrobe, get_example_wardrobe, load_listings
 
-SAMPLE_ITEM = {
-    "title": "Faded Band Tee",
-    "category": "tops",
-    "colors": ["black", "grey"],
-    "style_tags": ["vintage", "graphic", "oversized"],
-    "description": "Worn-in band tee with a faded print.",
-    "price": 22,
-    "platform": "Depop",
-}
+def _get_listing_by_id(listing_id: str) -> dict:
+    listing = next((item for item in load_listings() if item.get("id") == listing_id), None)
+    if listing is None:
+        raise AssertionError(f"Fixture listing {listing_id!r} was not found in data/listings.json")
+    return listing
 
-SAMPLE_WARDROBE = {
-    "items": [
-        {
-            "id": "w_001",
-            "name": "Baggy straight-leg jeans, dark wash",
-            "category": "bottoms",
-            "colors": ["dark blue", "indigo"],
-            "style_tags": ["denim", "streetwear", "baggy"],
-            "notes": "High-waisted, sits above the hip",
-        },
-        {
-            "id": "w_002",
-            "name": "White ribbed tank top",
-            "category": "tops",
-            "colors": ["white"],
-            "style_tags": ["basics", "minimal", "fitted"],
-            "notes": "Goes with everything",
-        },
-        {
-            "id": "w_003",
-            "name": "Chunky platform sneakers",
-            "category": "shoes",
-            "colors": ["white"],
-            "style_tags": ["streetwear", "chunky"],
-            "notes": None,
-        },
-    ]
-}
+
+SAMPLE_ITEM = _get_listing_by_id("lst_006")
+SAMPLE_WARDROBE = get_example_wardrobe()
 
 
 def test_search_listings_vintage_graphic_tee_with_size_and_budget_returns_3():
@@ -89,7 +61,7 @@ def test_suggest_outfit_with_wardrobe_returns_nonempty_styling_text():
 def test_suggest_outfit_with_empty_wardrobe_returns_general_advice():
     _skip_if_no_groq_key()
 
-    result = suggest_outfit(SAMPLE_ITEM, {"items": []})
+    result = suggest_outfit(SAMPLE_ITEM, get_empty_wardrobe())
     lower = result.lower()
 
     assert isinstance(result, str)
@@ -125,8 +97,17 @@ def test_create_fit_card_with_complete_input_returns_caption_with_price_and_plat
 
     assert isinstance(caption, str)
     assert caption.strip() != ""
-    assert "$22" in caption or "22" in caption
-    assert "depop" in caption.lower()
+    price_value = SAMPLE_ITEM["price"]
+    expected_price_variants = {str(price_value)}
+    if isinstance(price_value, (int, float)):
+        expected_price_variants.add(str(int(price_value)))
+    expected_platform = str(SAMPLE_ITEM["platform"]).lower()
+
+    assert any(
+        f"${price}" in caption or price in caption
+        for price in expected_price_variants
+    )
+    assert expected_platform in caption.lower()
 
 
 def test_create_fit_card_with_empty_outfit_returns_fallback_message():
