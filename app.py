@@ -43,8 +43,50 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
            string and return it along with session["outfit_suggestion"] and
            session["fit_card"].
     """
-    # TODO: implement this function
-    return "Agent not yet implemented.", "", ""
+    # Step 1: Guard against empty query
+    if not user_query or not user_query.strip():
+        return "Please enter a search query.", "", ""
+
+    # Step 2: Select wardrobe based on user's choice
+    wardrobe = (
+        get_example_wardrobe()
+        if wardrobe_choice == "Example wardrobe"
+        else get_empty_wardrobe()
+    )
+
+    # Step 3: Run the agent
+    session = run_agent(user_query, wardrobe)
+
+    # Step 4: Return error in the first panel on early termination
+    if session["error"]:
+        return session["error"], "", ""
+
+    # Step 5: Format the selected listing into a readable string
+    item = session["selected_item"]
+    listing_lines = [
+        f"Title: {item.get('title', 'Unknown')}",
+        f"Price: ${item.get('price', 'N/A')}",
+        f"Platform: {item.get('platform', 'N/A')}",
+        f"Size: {item.get('size', 'N/A')}",
+        f"Condition: {item.get('condition', 'N/A')}",
+        f"Brand: {item.get('brand') or 'Unbranded'}",
+    ]
+    if item.get("description"):
+        listing_lines.append(f"\n{item['description']}")
+
+    backup_items = session.get("backup_items", [])
+    if backup_items:
+        listing_lines.append("\n── Also found ──")
+        for b in backup_items:
+            listing_lines.append(
+                f"• {b.get('title', '?')} — ${b.get('price', '?')} ({b.get('platform', '?')})"
+            )
+
+    listing_text = "\n".join(listing_lines)
+    outfit = session["outfit_suggestion"] or ""
+    fit_card = session["fit_card"] or ""
+
+    return listing_text, outfit, fit_card
 
 
 # ── interface ─────────────────────────────────────────────────────────────────

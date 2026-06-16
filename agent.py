@@ -92,9 +92,100 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     Before writing code, complete the Planning Loop and State Management sections
     of planning.md — your implementation should match what you described there.
     """
-    # TODO: implement the planning loop
+    import re
+
+    # Step 1: Initialize session
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+    text = query.strip()
+
+    # Step 2: Parse query — extract max_price, size, and description via regex
+
+    # max_price: "under $30", "less than $40", "$25", etc.
+    price_pattern = re.compile(
+        r'\b(?:under|less\s+than|at\s+most|max(?:imum)?|below|up\s+to)\s+\$?\s*(\d+(?:\.\d+)?)'
+        r'|\$\s*(\d+(?:\.\d+)?)',
+        re.IGNORECASE,
+    )
+    price_match = price_pattern.search(text)
+    max_price = float(price_match.group(1) or price_match.group(2)) if price_match else None
+
+    # size: "size M", "size 8", or standalone label (XXS, XS, S, M, L, XL, XXL, XXXL)
+    size_pattern = re.compile(
+        r'\bsize\s+([a-zA-Z0-9]+(?:/[a-zA-Z0-9]+)?)\b'
+        r'|\b(XXS|XS|XXXL|XXL|XL|S|M|L)\b',
+        re.IGNORECASE,
+    )
+    size_match = size_pattern.search(text)
+    size = (size_match.group(1) or size_match.group(2)).upper() if size_match else None
+
+    # description: strip price and size fragments from the query text
+    desc = text
+    if price_match:
+        desc = desc[: price_match.start()] + desc[price_match.end() :]
+    size_match2 = size_pattern.search(desc)
+    if size_match2:
+        desc = desc[: size_match2.start()] + desc[size_match2.end() :]
+
+    # remove leading intent phrases and trailing connective words
+    desc = re.sub(
+        r'^\s*(?:looking\s+for|i\s+want|i\s+need|find\s+me|show\s+me|get\s+me)\b',
+        '',
+        desc,
+        flags=re.IGNORECASE,
+    )
+    desc = re.sub(r'\b(?:in|for|at|a|an|the)\s*$', '', desc, flags=re.IGNORECASE)
+    desc = re.sub(r'\s+', ' ', desc).strip().strip(',').strip()
+
+    # If description is missing or blank, stop and ask for clarification
+    if not desc:
+        session["error"] = "What item are you looking for?"
+        return session
+
+    session["parsed"] = {"description": desc, "size": size, "max_price": max_price}
+
+    # Step 3: Call search_listings; stop on tool failure
+    try:
+        results = search_listings(desc, size, max_price)
+        session["search_results"] = results
+    except Exception:
+        session["error"] = "I could not search listings right now. Please try again."
+        return session
+
+    # If no results, stop with retry guidance
+    if not results:
+        session["error"] = (
+            "No matches found for your search. "
+            "Try broadening your description, removing the size filter, or increasing your budget."
+        )
+        return session
+
+    # Step 4 & 6: Select top result; keep the rest as backups
+    session["selected_item"] = results[0]
+    session["backup_items"] = results[1:]
+
+    # Step 5: Call suggest_outfit; fall back to a generic tip on failure
+    try:
+        outfit_text = suggest_outfit(new_item=results[0], wardrobe=wardrobe)
+        if not outfit_text or not outfit_text.strip():
+            raise ValueError("empty response")
+    except Exception:
+        title = results[0].get("title", "this item")
+        outfit_text = (
+            f"This {title} is a versatile piece. "
+            "Try pairing it with neutral bottoms and clean sneakers for an effortless everyday look."
+        )
+    session["outfit_suggestion"] = outfit_text
+
+    # Step 6: Call create_fit_card; set fit_card to None on failure, then continue
+    try:
+        fit_card = create_fit_card(outfit=outfit_text, new_item=results[0])
+        if not fit_card or not fit_card.strip():
+            raise ValueError("empty response")
+        session["fit_card"] = fit_card
+    except Exception:
+        session["fit_card"] = None
+
+    # Step 7: Return completed session
     return session
 
 

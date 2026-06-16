@@ -166,9 +166,9 @@ For each tool, describe the specific failure mode you're handling and what the a
 
 | Tool | Failure mode | Agent response |
 |------|-------------|----------------|
-| search_listings | No results match the query | |
-| suggest_outfit | Wardrobe is empty | |
-| create_fit_card | Outfit input is missing or incomplete | |
+| search_listings | No results match the query | Stop the flow and return no-matches guidance: tell the user no listings were found and suggest retrying with a broader description, no size filter, or a higher budget. Set stop_reason = no_results. |
+| suggest_outfit | Wardrobe is empty | Do not stop. Return general styling advice (e.g., what bottoms, shoes, or layers pair well with the item). Store the fallback text in outfit_text and continue to create_fit_card. |
+| create_fit_card | Outfit input is missing or incomplete | Do not stop. Set fit_card = null and continue. Show the listing summary and outfit suggestion in the final response, but omit the caption step. |
 
 ---
 
