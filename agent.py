@@ -34,14 +34,19 @@ def _new_session(query: str, wardrobe: dict) -> dict:
     You may add fields to this dict as needed for your implementation.
     """
     return {
-        "query": query,              # original user query
-        "parsed": {},                # extracted description / size / max_price
-        "search_results": [],        # list of matching listing dicts
-        "selected_item": None,       # top result, passed into suggest_outfit
-        "wardrobe": wardrobe,        # user's wardrobe dict
-        "outfit_suggestion": None,   # string returned by suggest_outfit
-        "fit_card": None,            # string returned by create_fit_card
-        "error": None,               # set if the interaction ended early
+        "user_request": query,       # original user message
+        "description": None,         # parsed item description
+        "size": None,                # optional parsed size filter
+        "max_price": None,           # optional parsed budget filter
+        "wardrobe": wardrobe,        # parsed or provided wardrobe context
+        "listings": [],              # full results from search_listings
+        "selected_item": None,       # top listing from listings
+        "backup_items": [],          # remaining listings after the top result
+        "outfit_text": None,         # output from suggest_outfit or fallback
+        "fit_card": None,            # output from create_fit_card, or None
+        "errors": [],                # list of tool errors encountered
+        "status": "searching",       # waiting_for_input | searching | styling | captioning | complete | failed
+        "stop_reason": None,         # missing_description | search_failed | no_results
     }
 
 
@@ -136,56 +141,69 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     desc = re.sub(r'\b(?:in|for|at|a|an|the)\s*$', '', desc, flags=re.IGNORECASE)
     desc = re.sub(r'\s+', ' ', desc).strip().strip(',').strip()
 
-    # If description is missing or blank, stop and ask for clarification
+    # Step 2 (continued): If description is missing or blank, stop and ask for clarification
     if not desc:
-        session["error"] = "What item are you looking for?"
+        session["status"] = "waiting_for_input"
+        session["stop_reason"] = "missing_description"
+        session["errors"].append("What item are you looking for?")
         return session
 
-    session["parsed"] = {"description": desc, "size": size, "max_price": max_price}
+    session["description"] = desc
+    session["size"] = size
+    session["max_price"] = max_price
 
     # Step 3: Call search_listings; stop on tool failure
     try:
         results = search_listings(desc, size, max_price)
-        session["search_results"] = results
-    except Exception:
-        session["error"] = "I could not search listings right now. Please try again."
+        session["listings"] = results
+    except Exception as exc:
+        session["status"] = "failed"
+        session["stop_reason"] = "search_failed"
+        session["errors"].append(str(exc))
         return session
 
-    # If no results, stop with retry guidance
+    # Step 5: If no results, stop with retry guidance
     if not results:
-        session["error"] = (
+        session["status"] = "failed"
+        session["stop_reason"] = "no_results"
+        session["errors"].append(
             "No matches found for your search. "
             "Try broadening your description, removing the size filter, or increasing your budget."
         )
         return session
 
-    # Step 4 & 6: Select top result; keep the rest as backups
+    # Step 6: Select top result; keep the rest as backups
     session["selected_item"] = results[0]
     session["backup_items"] = results[1:]
 
-    # Step 5: Call suggest_outfit; fall back to a generic tip on failure
+    # Step 7: Call suggest_outfit; fall back to a generic tip on failure
+    session["status"] = "styling"
     try:
         outfit_text = suggest_outfit(new_item=results[0], wardrobe=wardrobe)
         if not outfit_text or not outfit_text.strip():
             raise ValueError("empty response")
-    except Exception:
+    except Exception as exc:
+        session["errors"].append(str(exc))
         title = results[0].get("title", "this item")
         outfit_text = (
             f"This {title} is a versatile piece. "
             "Try pairing it with neutral bottoms and clean sneakers for an effortless everyday look."
         )
-    session["outfit_suggestion"] = outfit_text
+    session["outfit_text"] = outfit_text
 
-    # Step 6: Call create_fit_card; set fit_card to None on failure, then continue
+    # Steps 10–12: Call create_fit_card; set fit_card to None on failure, then continue
+    session["status"] = "captioning"
     try:
         fit_card = create_fit_card(outfit=outfit_text, new_item=results[0])
         if not fit_card or not fit_card.strip():
             raise ValueError("empty response")
         session["fit_card"] = fit_card
-    except Exception:
+    except Exception as exc:
+        session["errors"].append(str(exc))
         session["fit_card"] = None
 
-    # Step 7: Return completed session
+    # Step 14: Mark complete and return
+    session["status"] = "complete"
     return session
 
 
@@ -199,11 +217,12 @@ if __name__ == "__main__":
         query="looking for a vintage graphic tee under $30",
         wardrobe=get_example_wardrobe(),
     )
-    if session["error"]:
-        print(f"Error: {session['error']}")
+    if session["stop_reason"]:
+        print(f"Stop reason: {session['stop_reason']}")
+        print(f"Errors: {session['errors']}")
     else:
         print(f"Found: {session['selected_item']['title']}")
-        print(f"\nOutfit: {session['outfit_suggestion']}")
+        print(f"\nOutfit: {session['outfit_text']}")
         print(f"\nFit card: {session['fit_card']}")
 
     print("\n\n=== No-results path ===\n")
@@ -211,4 +230,5 @@ if __name__ == "__main__":
         query="designer ballgown size XXS under $5",
         wardrobe=get_example_wardrobe(),
     )
-    print(f"Error message: {session2['error']}")
+    print(f"Stop reason: {session2['stop_reason']}")
+    print(f"Errors: {session2['errors']}")

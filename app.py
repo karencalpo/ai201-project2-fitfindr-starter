@@ -37,10 +37,10 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
         1. Guard against an empty query (return early with an error message).
         2. Select the wardrobe based on wardrobe_choice.
         3. Call run_agent() with the query and selected wardrobe.
-        4. If session["error"] is set, return the error in the first panel
+        4. If session["stop_reason"] is set, return the first error in the first panel
            and empty strings for the other two.
         5. Otherwise, format session["selected_item"] into a readable listing_text
-           string and return it along with session["outfit_suggestion"] and
+           string and return it along with session["outfit_text"] and
            session["fit_card"].
     """
     # Step 1: Guard against empty query
@@ -57,9 +57,10 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
     # Step 3: Run the agent
     session = run_agent(user_query, wardrobe)
 
-    # Step 4: Return error in the first panel on early termination
-    if session["error"]:
-        return session["error"], "", ""
+    # Step 4: Return the first error message in the first panel on early termination
+    if session["stop_reason"]:
+        error_msg = session["errors"][0] if session["errors"] else "Something went wrong. Please try again."
+        return error_msg, "", ""
 
     # Step 5: Format the selected listing into a readable string
     item = session["selected_item"]
@@ -83,7 +84,7 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
             )
 
     listing_text = "\n".join(listing_lines)
-    outfit = session["outfit_suggestion"] or ""
+    outfit = session["outfit_text"] or ""
     fit_card = session["fit_card"] or ""
 
     return listing_text, outfit, fit_card
