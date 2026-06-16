@@ -168,30 +168,48 @@ def search_listings(
 def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     """
     Given a thrifted item and the user's wardrobe, suggest 1–2 complete outfits.
-
-    Args:
-        new_item: A listing dict (the item the user is considering buying).
-        wardrobe: A wardrobe dict with an 'items' key containing a list of
-                  wardrobe item dicts. May be empty — handle this gracefully.
-
-    Returns:
-        A non-empty string with outfit suggestions.
-        If the wardrobe is empty, offer general styling advice for the item
-        rather than raising an exception or returning an empty string.
-
-    TODO:
-        1. Check whether wardrobe['items'] is empty.
-        2. If empty: call the LLM with a prompt for general styling ideas
-           (what kinds of items pair well, what vibe it suits, etc.).
-        3. If not empty: format the wardrobe items into a prompt and ask
-           the LLM to suggest specific outfit combinations using the new item
-           and named pieces from the wardrobe.
-        4. Return the LLM's response as a string.
-
-    Before writing code, fill in the Tool 2 section of planning.md.
+    ...
     """
-    # Replace this with your implementation
-    return ""
+    client = _get_groq_client()
+
+    item_description = (
+        f"Title: {new_item.get('title', 'Unknown item')}\n"
+        f"Category: {new_item.get('category', '')}\n"
+        f"Colors: {', '.join(new_item.get('colors', []))}\n"
+        f"Style tags: {', '.join(new_item.get('style_tags', []))}\n"
+        f"Description: {new_item.get('description', '')}"
+    )
+
+    wardrobe_items = (wardrobe or {}).get("items") or []
+
+    if not wardrobe_items:
+        prompt = (
+            f"A user is considering buying this secondhand item:\n\n{item_description}\n\n"
+            "They haven't shared their wardrobe yet. Give general styling advice: "
+            "what kinds of bottoms, shoes, layers, or accessories pair well with this item, "
+            "and what overall vibe or aesthetic it suits. Keep it casual and specific, 2–4 sentences."
+        )
+    else:
+        wardrobe_text = "\n".join(
+            f"- {item.get('name', 'Unnamed')} ({item.get('category', '')})"
+            f"{': ' + item['notes'] if item.get('notes') else ''}"
+            for item in wardrobe_items
+        )
+        prompt = (
+            f"A user is considering buying this secondhand item:\n\n{item_description}\n\n"
+            f"Here are the pieces already in their wardrobe:\n{wardrobe_text}\n\n"
+            "Suggest 1–2 specific outfit combinations using the new item and named pieces "
+            "from the wardrobe. Be specific about which pieces go together and describe the vibe. "
+            "Keep it casual and direct, like advice from a stylish friend."
+        )
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+    )
+
+    return response.choices[0].message.content.strip()
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────

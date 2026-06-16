@@ -70,8 +70,6 @@ A 2 to 4 sentence fit card caption that mentions the thrifted item naturally, in
 <!-- What should the agent do if the outfit data is incomplete? -->
 If the outfit input is missing, empty, or too incomplete to turn into a caption, the tool should return a clear fallback message explaining that a fit card could not be created because no outfit suggestion was available. The agent should show the listing and outfit result if available, but skip the caption as the final step.
 
-If you want, I can also draft the matching Error Handling table rows so they stay consistent with these tool definitions.
-
 ---
 
 ### Additional Tools (if any)
