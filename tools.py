@@ -216,30 +216,39 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
 
 def create_fit_card(outfit: str, new_item: dict) -> str:
     """
-    Generate a short, shareable outfit caption for the thrifted find.
-
-    Args:
-        outfit:   The outfit suggestion string from suggest_outfit().
-        new_item: The listing dict for the thrifted item.
-
-    Returns:
-        A 2–4 sentence string usable as an Instagram/TikTok caption.
-        If outfit is empty or missing, return a descriptive error message
-        string — do NOT raise an exception.
-
-    The caption should:
-    - Feel casual and authentic (like a real OOTD post, not a product description)
-    - Mention the item name, price, and platform naturally (once each)
-    - Capture the outfit vibe in specific terms
-    - Sound different each time for different inputs (use higher LLM temperature)
-
-    TODO:
-        1. Guard against an empty or whitespace-only outfit string.
-        2. Build a prompt that gives the LLM the item details and the outfit,
-           and asks for a caption matching the style guidelines above.
-        3. Call the LLM and return the response.
-
-    Before writing code, fill in the Tool 3 section of planning.md.
+    This tool turns the outfit suggestion and the selected listing into a short, social-style caption or “fit card.” It summarizes the look in a casual, expressive tone that feels like an outfit post rather than a product listing.
+    
     """
-    # Replace this with your implementation
-    return ""
+    if not outfit or not outfit.strip():
+        return (
+            "Fit card could not be created: no outfit suggestion was available. "
+            "Check the listing and outfit details above."
+        )
+
+    title = new_item.get("title", "thrifted find")
+    price = new_item.get("price")
+    platform = new_item.get("platform", "")
+
+    price_str = f"${price}" if price is not None else "an unbeatable price"
+    platform_str = f" off {platform}" if platform else ""
+
+    prompt = (
+        f"You're writing a casual, authentic OOTD (outfit of the day) caption for social media.\n\n"
+        f"The thrifted item: {title}{platform_str} for {price_str}.\n\n"
+        f"The outfit suggestion: {outfit.strip()}\n\n"
+        "Write a 2–4 sentence caption that:\n"
+        "- Sounds like a real post from a fashion-forward thrifter, not a product ad\n"
+        "- Mentions the item name, price, and platform naturally (each once)\n"
+        "- Captures the vibe of the full outfit in specific, expressive language\n"
+        "- Uses a lowercase, conversational tone (emojis optional)\n\n"
+        "Output only the caption text, nothing else."
+    )
+
+    client = _get_groq_client()
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=1.2,
+    )
+
+    return response.choices[0].message.content.strip()

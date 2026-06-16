@@ -1,7 +1,6 @@
 import os
 import pytest
-from tools import search_listings, suggest_outfit
-
+from tools import create_fit_card, search_listings, suggest_outfit
 
 SAMPLE_ITEM = {
     "title": "Faded Band Tee",
@@ -108,3 +107,61 @@ def test_suggest_outfit_handles_missing_items_key_gracefully():
 
     assert isinstance(result, str)
     assert result.strip() != ""
+
+
+def _skip_if_no_groq_key_for_fit_card():
+    if not os.environ.get("GROQ_API_KEY"):
+        pytest.skip("GROQ_API_KEY is not set; skipping live create_fit_card tests.")
+
+
+def test_create_fit_card_with_complete_input_returns_caption_with_price_and_platform():
+    _skip_if_no_groq_key_for_fit_card()
+
+    outfit = (
+        "Pair the faded band tee with baggy dark-wash jeans and chunky white sneakers. "
+        "Add a light bomber jacket for a relaxed 90s streetwear vibe."
+    )
+    caption = create_fit_card(outfit, SAMPLE_ITEM)
+
+    assert isinstance(caption, str)
+    assert caption.strip() != ""
+    assert "$22" in caption or "22" in caption
+    assert "depop" in caption.lower()
+
+
+def test_create_fit_card_with_empty_outfit_returns_fallback_message():
+    caption = create_fit_card("   ", SAMPLE_ITEM)
+
+    assert isinstance(caption, str)
+    assert "could not be created" in caption.lower()
+    assert "no outfit suggestion was available" in caption.lower()
+
+
+def test_create_fit_card_handles_missing_listing_fields_gracefully():
+    _skip_if_no_groq_key_for_fit_card()
+
+    minimal_item = {"title": "Mystery Jacket"}
+    outfit = "Style it with straight black pants and clean sneakers for an easy everyday look."
+
+    caption = create_fit_card(outfit, minimal_item)
+
+    assert isinstance(caption, str)
+    assert caption.strip() != ""
+    assert "mystery jacket" in caption.lower()
+
+
+def test_create_fit_card_outputs_vary_across_runs():
+    _skip_if_no_groq_key_for_fit_card()
+
+    outfit = (
+        "Pair the faded band tee with baggy dark-wash jeans and chunky white sneakers. "
+        "Add silver accessories for a grungy casual finish."
+    )
+
+    outputs = [create_fit_card(outfit, SAMPLE_ITEM).strip() for _ in range(4)]
+    unique_outputs = {output for output in outputs if output}
+
+    assert len(unique_outputs) >= 2, (
+        "Expected varied captions across repeated calls. "
+        "If this fails repeatedly, increase temperature in create_fit_card()."
+    )
